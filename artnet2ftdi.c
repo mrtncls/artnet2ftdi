@@ -36,6 +36,7 @@
 
 int main(int argc, char **argv) {
 	unsigned char buf[DMX_FRAME_SIZE] = { 0 };
+	unsigned char last_sent[DMX_FRAME_SIZE] = { 0 };
 	struct sockaddr_in si_me, si_other;
 	socklen_t slen = sizeof(si_other);
 	struct ftdi_context dmx;
@@ -68,6 +69,7 @@ int main(int argc, char **argv) {
 	r = bind(udp_socket, (struct sockaddr *) &si_me, sizeof(si_me));
 	assert(r >= 0);
 
+	setbuf(stdout, NULL);
 	printf("Waiting for packets on UDP port %d ...\n", port);
 
 	struct pollfd pfd = {
@@ -97,10 +99,14 @@ int main(int argc, char **argv) {
 		assert(ftdi_set_line_property2(&dmx, BITS_8, STOP_BIT_2, NONE, BREAK_OFF) == 0);
 		usleep(MAB_DELAY);
 
-		printf("Channels: 6:%u 7:%u 8:%u 9:%u 10:%u 11:%u\n", buf[6], buf[7], buf[8], buf[9], buf[10], buf[11]);
+		for (int i = 0; i < DMX_FRAME_SIZE; i++)
+			if (buf[i] != last_sent[i])
+				printf("Channel %u: %u\n", i, buf[i]);
 
 		assert(ftdi_write_data(&dmx, buf, sizeof(buf)) == sizeof(buf));
 		usleep(FRAME_DELAY);
+
+		memcpy(last_sent, buf, DMX_FRAME_SIZE);
 	}
 
 	return EXIT_SUCCESS;
